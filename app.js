@@ -279,8 +279,11 @@ async function selectArea(areaId) {
     document.getElementById('mapImgWrap').style.display = '';
     document.getElementById('mapTools').style.display = '';
     const img = document.getElementById('mapImg');
-    img.src = area.mapImage;
+    // onloadが発火しないケース（同じsrcのキャッシュ済み画像）に対応
     img.onload = () => { fitMap(); renderMapPins(); };
+    img.src = area.mapImage;
+    // すでにロード済みの場合はonloadが発火しないため即時実行
+    if (img.complete && img.naturalWidth > 0) { fitMap(); renderMapPins(); }
   } else {
     document.getElementById('mapPlaceholder').style.display = '';
     document.getElementById('mapPlaceholder').querySelector('p').innerHTML = area
