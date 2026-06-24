@@ -4,6 +4,7 @@
 const db = new DoujinDB();
 let allCircles = [];
 let allAreas = [];
+let allGenres = [];
 let currentAreaId = null;
 let pinMode = false;
 let pendingPinPos = null;
@@ -40,6 +41,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function loadAllData() {
   allCircles = await db.getAllCircles();
   allAreas = await db.getAllAreas();
+  allGenres = (await db.getAllGenres()).map(g => g.name);
+  updateGenreFilter();
+  updateGenreDatalist();
 }
 
 // ===== タブ切替 =====
@@ -59,6 +63,7 @@ function setupEventListeners() {
   document.getElementById('searchInput').addEventListener('input', renderList);
   document.getElementById('filterStatus').addEventListener('change', renderList);
   document.getElementById('filterTarget').addEventListener('change', renderList);
+  document.getElementById('filterGenre').addEventListener('change', renderList);
 
   // FAB
   document.getElementById('fabAdd').addEventListener('click', () => openCircleModal());
@@ -107,11 +112,13 @@ function renderList() {
   const query = document.getElementById('searchInput').value.toLowerCase();
   const statusF = document.getElementById('filterStatus').value;
   const targetF = document.getElementById('filterTarget').value;
+  const genreF = document.getElementById('filterGenre').value;
 
   let filtered = allCircles.filter(c => {
     if (query && !c.name.toLowerCase().includes(query)) return false;
     if (statusF !== 'all' && c.status !== statusF) return false;
     if (targetF !== 'all' && c.target !== targetF) return false;
+    if (genreF !== 'all' && (c.genre || '') !== genreF) return false;
     return true;
   });
 
@@ -136,8 +143,9 @@ function renderList() {
         <span class="cc-space">${esc(c.space || '未設定')}</span>
       </div>
       <div class="cc-tags">
-        ${c.type === 'new' ? '<span class="cc-tag new">📕 新刊</span>' : '<span class="cc-tag">📗 既刊</span>'}
+        ${c.type === 'new' ? '<span class="cc-tag new">📕 新刊</span>' : c.type === 'greeting' ? '<span class="cc-tag greeting">👋 ご挨拶</span>' : '<span class="cc-tag">📗 既刊</span>'}
         ${c.target === 'friend' ? '<span class="cc-tag friend">🤝 友人分</span>' : ''}
+        ${c.genre ? `<span class="cc-tag genre">🏷️ ${esc(c.genre)}</span>` : ''}
         ${areaName ? `<span class="cc-tag">📍 ${esc(areaName)}</span>` : ''}
       </div>
       ${c.item ? `<div class="cc-item">📦 ${esc(c.item)}</div>` : ''}
@@ -186,6 +194,7 @@ async function openCircleModal(id) {
     document.getElementById('fType').value = c.type || 'new';
     document.getElementById('fTarget').value = c.target || 'self';
     document.getElementById('fNote').value = c.note || '';
+    document.getElementById('fGenre').value = c.genre || '';
     delBtn.style.display = '';
   } else {
     title.textContent = 'サークルを追加';
@@ -197,6 +206,7 @@ async function openCircleModal(id) {
     document.getElementById('fType').value = 'new';
     document.getElementById('fTarget').value = 'self';
     document.getElementById('fNote').value = '';
+    document.getElementById('fGenre').value = '';
     delBtn.style.display = 'none';
   }
   modal.classList.add('open');
@@ -207,6 +217,7 @@ async function saveCircle() {
   if (!name) { showToast('サークル名を入力してください'); return; }
   const idVal = document.getElementById('editCircleId').value;
   const areaVal = document.getElementById('fArea').value;
+  const genreVal = document.getElementById('fGenre').value.trim();
   const data = {
     name,
     space: document.getElementById('fSpace').value.trim(),
@@ -215,8 +226,11 @@ async function saveCircle() {
     type: document.getElementById('fType').value,
     target: document.getElementById('fTarget').value,
     note: document.getElementById('fNote').value.trim(),
+    genre: genreVal,
     status: 'unbought'
   };
+  // ジャンルをDBに記憎（入力がある場合のみ）
+  if (genreVal) await db.addGenre(genreVal);
   if (idVal) {
     const existing = await db.getCircle(Number(idVal));
     data.id = Number(idVal);
@@ -279,11 +293,11 @@ async function selectArea(areaId) {
     document.getElementById('mapImgWrap').style.display = '';
     document.getElementById('mapTools').style.display = '';
     const img = document.getElementById('mapImg');
-    // onloadが発火しないケース（同じsrcのキャッシュ済み画像）に対応
+    // 一度srcをリセットして、onloadが確実に発火するようにする
+    img.onload = null;
+    img.src = '';
     img.onload = () => { fitMap(); renderMapPins(); };
     img.src = area.mapImage;
-    // すでにロード済みの場合はonloadが発火しないため即時実行
-    if (img.complete && img.naturalWidth > 0) { fitMap(); renderMapPins(); }
   } else {
     document.getElementById('mapPlaceholder').style.display = '';
     document.getElementById('mapPlaceholder').querySelector('p').innerHTML = area
@@ -492,7 +506,7 @@ function showPinPopup(pin, circle, pinEl) {
 
   popup.innerHTML = circle
     ? `<div class="pp-name">${esc(circle.name)}</div>
-       <div class="pp-space">${esc(circle.space || '')} ${circle.type === 'new' ? '📕新刊' : '📗既刊'} ${circle.target === 'friend' ? '🤝友人分' : ''}</div>
+       <div class="pp-space">${esc(circle.space || '')} ${circle.type === 'new' ? '📕新刊' : circle.type === 'greeting' ? '👋ご挨拶' : '📗既刊'} ${circle.target === 'friend' ? '🤝友人分' : ''}</div>
        <div class="status-btns">
          ${Object.entries(STATUS).map(([k, v]) =>
            `<button class="status-btn ${circle.status === k ? 'active' : ''}" data-s="${k}" onclick="setStatus(${circle.id},'${k}');renderMapPins()">${v.label}</button>`
@@ -544,6 +558,23 @@ async function savePin() {
   closeModal('pinLinkModal');
   renderMapPins();
   showToast('ピンを配置しました');
+}
+
+// ===== ジャンル管理 =====
+function updateGenreFilter() {
+  // フィルタselectのオプションをジャンル一覧で更新
+  const sel = document.getElementById('filterGenre');
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">ジャンル</option>' +
+    allGenres.map(g => `<option value="${esc(g)}">${esc(g)}</option>`).join('');
+  // 選択中の値を維持
+  if (allGenres.includes(current)) sel.value = current;
+}
+
+function updateGenreDatalist() {
+  // サークルモーダルのdatalistを更新
+  const dl = document.getElementById('genreList');
+  dl.innerHTML = allGenres.map(g => `<option value="${esc(g)}">`).join('');
 }
 
 // ===== 統計 =====
