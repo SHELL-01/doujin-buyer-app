@@ -2,7 +2,7 @@
 // 即売会バイヤー: サークル情報・エリア・地図画像の永続化
 
 const DB_NAME = 'DoujinBuyerDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 class DoujinDB {
   constructor() {
@@ -30,6 +30,10 @@ class DoujinDB {
         if (!db.objectStoreNames.contains('pins')) {
           const pinStore = db.createObjectStore('pins', { keyPath: 'id', autoIncrement: true });
           pinStore.createIndex('areaId', 'areaId', { unique: false });
+        }
+        // ジャンルストア（バージョン2で追加）
+        if (!db.objectStoreNames.contains('genres')) {
+          db.createObjectStore('genres', { keyPath: 'name' });
         }
       };
       req.onsuccess = (e) => { this.db = e.target.result; resolve(); };
@@ -74,6 +78,28 @@ class DoujinDB {
   }
   async getAllAreas() {
     return this._getAll('areas');
+  }
+
+  // --- ジャンル操作 ---
+  async addGenre(name) {
+    // 同名があれば上書き（put は keyPath が同じなら更新）
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('genres', 'readwrite');
+      const req = tx.objectStore('genres').put({ name });
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async getAllGenres() {
+    return this._getAll('genres');
+  }
+  async deleteGenre(name) {
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('genres', 'readwrite');
+      const req = tx.objectStore('genres').delete(name);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
   }
 
   // --- ピン操作 ---
