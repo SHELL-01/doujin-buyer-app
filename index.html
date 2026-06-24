@@ -65,6 +65,10 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
 .status-btn[data-s="bought"].active{background:var(--green)}
 .status-btn[data-s="soldout"].active{background:var(--red)}
 .status-btn[data-s="online"].active{background:var(--purple)}
+/* ジャンルタグ */
+.cc-tag.genre{background:rgba(79,195,247,.15);color:var(--blue)}
+/* ご挨拶タグ */
+.cc-tag.greeting{background:rgba(0,214,143,.15);color:var(--green)}
 
 /* ===== FAB ===== */
 .fab{position:fixed;bottom:calc(var(--tab-h) + 16px);right:16px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:28px;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow);z-index:90;transition:transform .2s}
@@ -157,6 +161,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
         <option value="self">自分</option>
         <option value="friend">友人</option>
       </select>
+      <select id="filterGenre">
+        <option value="all">ジャンル</option>
+      </select>
     </div>
     <div class="circle-list" id="circleList"></div>
   </div>
@@ -230,13 +237,18 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
     <div class="form-group"><label>頒布物名</label><input id="fItem" placeholder="例: 新刊セット"></div>
     <div class="form-row">
       <div class="form-group"><label>種別</label>
-        <select id="fType"><option value="new">新刊</option><option value="old">既刊</option></select>
+        <select id="fType"><option value="new">新刊</option><option value="old">既刊</option><option value="greeting">ご挨拶</option></select>
       </div>
       <div class="form-group"><label>対象</label>
         <select id="fTarget"><option value="self">自分用</option><option value="friend">友人分</option></select>
       </div>
     </div>
     <div class="form-group"><label>備考</label><textarea id="fNote" rows="2" placeholder="メモがあれば..."></textarea></div>
+    <div class="form-group">
+      <label>ジャンル</label>
+      <input id="fGenre" list="genreList" placeholder="例: BL・百合・オリジナル…" autocomplete="off">
+      <datalist id="genreList"></datalist>
+    </div>
     <div class="modal-actions">
       <button class="btn-cancel" id="btnCancelCircle">キャンセル</button>
       <button class="btn-delete" id="btnDeleteCircle" style="display:none">削除</button>
