@@ -56,8 +56,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
 .cc-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--surface2);color:var(--text2)}
 .cc-tag.new{background:rgba(255,183,77,.15);color:var(--orange)}
 .cc-tag.friend{background:rgba(168,85,247,.15);color:var(--accent2)}
-.circle-card .cc-item{font-size:13px;color:var(--text2);margin-bottom:8px}
-.circle-card .cc-note{font-size:12px;color:var(--text2);font-style:italic}
+.circle-card .cc-item{font-size:13px;color:var(--text2);margin-bottom:8px;white-space:pre-wrap}
+.circle-card .cc-note{font-size:12px;color:var(--text2);font-style:italic;white-space:pre-wrap}
 .status-btns{display:flex;gap:6px;margin-top:8px}
 .status-btn{padding:6px 10px;border-radius:20px;font-size:11px;font-weight:600;background:var(--surface2);transition:.2s}
 .status-btn.active{color:#fff}
@@ -234,7 +234,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
       <div class="form-group"><label>スペース番号</label><input id="fSpace" placeholder="例: A-01"></div>
       <div class="form-group"><label>エリア</label><select id="fArea"></select></div>
     </div>
-    <div class="form-group"><label>頒布物名</label><input id="fItem" placeholder="例: 新刊セット"></div>
+    <div class="form-group"><label>頒布物名</label><textarea id="fItem" rows="2" placeholder="例: 新刊セット&#10;アクリルキーホルダー&#10;（複数ある場合は改行）"></textarea></div>
     <div class="form-row">
       <div class="form-group"><label>種別</label>
         <select id="fType"><option value="new">新刊</option><option value="old">既刊</option><option value="greeting">ご挨拶</option></select>
