@@ -8,6 +8,7 @@ let allGenres = [];
 let currentAreaId = null;
 let pinMode = false;
 let pendingPinPos = null;
+let targetCircleForPin = null;
 
 // マップ状態
 let mapScale = 1;
@@ -56,6 +57,11 @@ function setupEventListeners() {
       btn.classList.add('active');
       document.getElementById(btn.dataset.view).classList.add('active');
       if (btn.dataset.view === 'settingsView') updateSettingsStats();
+      if (btn.dataset.view !== 'mapView') {
+        targetCircleForPin = null;
+        pinMode = false;
+        document.getElementById('btnPinMode').classList.remove('active');
+      }
     });
   });
 
@@ -236,13 +242,25 @@ async function saveCircle() {
     data.id = Number(idVal);
     data.status = existing ? existing.status : 'unbought';
   }
-  await db.addCircle(data);
+  const isNew = !idVal;
+  const savedId = await db.addCircle(data);
   await loadAllData();
   renderList();
   updateStats();
   renderMapPins();
   closeModal('circleModal');
   showToast(idVal ? '更新しました' : '追加しました');
+
+  if (isNew && data.area) {
+    if (confirm('続けてマップにピンを打ちますか？')) {
+      targetCircleForPin = savedId;
+      await selectArea(data.area);
+      document.querySelector('[data-view="mapView"]').click();
+      pinMode = true;
+      document.getElementById('btnPinMode').classList.add('active');
+      showToast('マップをタップしてピンを配置してください');
+    }
+  }
 }
 
 async function deleteCircle() {
@@ -412,7 +430,11 @@ function onMapPointerDown(e) {
     const img = document.getElementById('mapImg');
     if (imgX >= 0 && imgX <= img.naturalWidth && imgY >= 0 && imgY <= img.naturalHeight) {
       pendingPinPos = { x: imgX / img.naturalWidth, y: imgY / img.naturalHeight };
-      openPinLinkModal();
+      if (targetCircleForPin) {
+        savePinDirectly(targetCircleForPin).catch(console.error);
+      } else {
+        openPinLinkModal();
+      }
     }
     return;
   }
@@ -463,6 +485,7 @@ function onMapPointerUp(e) {
 
 function togglePinMode() {
   pinMode = !pinMode;
+  if (!pinMode) targetCircleForPin = null;
   document.getElementById('btnPinMode').classList.toggle('active', pinMode);
   showToast(pinMode ? 'ピン配置モード ON: マップをタップしてピンを配置' : 'ピン配置モード OFF');
 }
@@ -556,6 +579,22 @@ async function savePin() {
   pinMode = false;
   document.getElementById('btnPinMode').classList.remove('active');
   closeModal('pinLinkModal');
+  renderMapPins();
+  showToast('ピンを配置しました');
+}
+
+async function savePinDirectly(circleId) {
+  if (!pendingPinPos || !currentAreaId) return;
+  await db.addPin({
+    areaId: currentAreaId,
+    x: pendingPinPos.x,
+    y: pendingPinPos.y,
+    circleId: circleId
+  });
+  pendingPinPos = null;
+  targetCircleForPin = null;
+  pinMode = false;
+  document.getElementById('btnPinMode').classList.remove('active');
   renderMapPins();
   showToast('ピンを配置しました');
 }
